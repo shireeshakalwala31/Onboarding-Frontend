@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   GLOBAL DARK NAVY GLASS THEME
+   ============================================================ */
+:root{
+  --navy-900:#020617;
+  --navy-800:#0a1124;
+  --navy-700:#11203c;
+
+  --accent-1:#5f23ff;
+  --accent-2:#c56fff;
+
+  --glass-1:rgba(255,255,255,0.05);
+  --glass-2:rgba(255,255,255,0.08);
+
+  --text-light:#08014a;
+  --text-muted:#9db5d3;
+}
+
+/* ============================================================
+   PAGE BACKGROUND — Animated Navy Aurora
+   ============================================================ */
+body {
+  @apply antialiased;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(95,35,255,0.25), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(197,111,255,0.28), transparent 60%),
+    linear-gradient(135deg, #020617, #0b1533, #081228, #020617);
+  background-size: 200% 200%;
+  animation: bgMove 18s ease-in-out infinite;
+  color: var(--text-light);
+}
+
+@keyframes bgMove {
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+
+/* Floating blurred orbs */
+.bg-orb {
+  position: fixed;
+  width: 500px;
+  height: 500px;
+  filter: blur(100px);
+  border-radius: 50%;
+  z-index: -1;
+  opacity: .3;
+  animation: floatOrb 12s ease-in-out infinite alternate;
+}
+@keyframes floatOrb {
+  0%{transform:translateY(0)}
+  100%{transform:translateY(-40px)}
+}
+
+.bg-orb.purple { background:#7b32ff; top:-10%; left:-10%; }
+.bg-orb.blue { background:#00b3ff; bottom:-12%; right:-8%; }
+
+/* ============================================================
+   GLASS CARDS – NO WHITE PANEL ANYWHERE
+   ============================================================ */
+.card {
+  @apply rounded-2xl p-8;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(255,255,255,0.08);
+  backdrop-filter: blur(16px) saturate(160%);
+  color: var(--text-light);
+}
+
+/* ============================================================
+   SIDEBAR — DARK NAVY + PURPLE ACTIVE
+   ============================================================ */
+.sidebar {
+  @apply w-64 h-screen p-6 flex flex-col gap-5;
+  background: rgba(90, 65, 250, 0.55);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: 10px 0 40px rgba(0,0,0,0.45);
+}
+
+.sidebar-brand {
+  @apply text-xl font-bold tracking-wide;
+  color: #bdaaff;
+}
+
+.sidebar-item {
+  @apply flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition font-medium;
+  color: var(--text-muted);
+}
+.sidebar-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.sidebar-active {
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  color: rgb(253, 70, 247) !important;
+  box-shadow: 0 10px 40px rgba(99,51,255,0.4);
+}
+
+/* ============================================================
+   INPUT FIELDS — NAVY GLASS + SOFT GLOW
+   ============================================================ */
+.input {
+  @apply w-full px-4 py-3 rounded-lg;
+  background: rgba(61, 28, 139, 0.237);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(6px);
+  color: var(--text-light);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.55);
+}
+.input::placeholder {
+  color: rgba(71, 40, 164, 0.24);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent-1);
+  box-shadow:
+    0 0 0 4px rgba(95,35,255,0.22),
+    inset 0 0 20px rgba(0,0,0,0.55);
+}
+
+/* ============================================================
+   PHOTO PANEL — DARK GLASS BOX
+   ============================================================ */
+.photo-preview {
+  width: 220px;
+  height: 260px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+/* ============================================================
+   BUTTONS — PURPLE NEON
+   ============================================================ */
+/* ===========================================
+   PURPLE GRADIENT BUTTONS (Tailwind version)
+   =========================================== */
+
+.btn-primary {
+  @apply px-5 py-2 rounded-lg font-semibold text-white 
+         shadow-lg transition-transform duration-200 
+         hover:-translate-y-1 hover:scale-[1.02]
+         border border-purple-500;
+
+  background: linear-gradient(90deg, #4c007d, #a12bef);
+  box-shadow: 0 0 20px #a12bef, 0 0 40px rgba(161,43,239,0.5);
+}
+
+.btn-secondary {
+  @apply px-4 py-2 rounded-lg font-medium
+         text-purple-900 bg-purple-100
+         shadow transition-all duration-150
+         border border-purple-300;
+
+  background: linear-gradient(90deg, #f3e8ff, #ecd9ff);
+}
+
+.btn-secondary:hover {
+  @apply shadow-md;
+  box-shadow: 0 0 12px rgba(161,43,239,0.35);
+}
+
+/* ACTIVE glowing button (used for active steps) */
+.btn-active {
+  @apply text-white font-semibold border-purple-600;
+  background: linear-gradient(90deg, #6a00ff, #c05bff);
+  box-shadow: 0 0 25px #c05bff;
+}
+
+
+/* ============================================================
+   STEP CHIPS
+   ============================================================ */
+.step-chip {
+  @apply px-4 py-1.5 rounded-full font-medium text-sm;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-light);
+}
+.step-chip.active {
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  color: rgb(30, 2, 76);
+  box-shadow: 0 10px 40px rgba(111,60,255,0.5);
+}
+.save-bttn{
+  
+  @apply text-white font-semibold border-purple-600;
+  background: linear-gradient(90deg, #6a00ff, #c05bff);
+  box-shadow: 0 0 25px #c05bff;
+}
