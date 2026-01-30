@@ -3,11 +3,11 @@ import React, { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import EmployeeForm from "../components/EmployeeForm";
 import Sidebar from "../Sidebar";
-import axios from "axios";
 import {
   validateOnboardingLink,
   saveLinkSection,
   submitLinkDeclaration,
+  authenticateOnboardingLink,
 } from "../api/onboardingApi";
 
 const AUTH_BASE_URL =
@@ -75,7 +75,7 @@ export default function OnboardingLinkPage() {
     }
   }, []);
 
-  // Handle login
+  // Handle login (candidate via onboarding link)
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError("");
@@ -88,36 +88,36 @@ export default function OnboardingLinkPage() {
     try {
       setLoginLoading(true);
 
-      const response = await axios.post(`${AUTH_BASE_URL}/employee/login`, {
+      // Use onboarding link authentication endpoint
+      const resp = await authenticateOnboardingLink(token, {
         email: username,
         password,
       });
 
-      const { token: loginToken } = response.data;
+      // Expecting { token: <jwt>, onboardingToken?: <token>, candidate?: {...} }
+      const loginToken = resp.token || resp.data?.token;
 
       if (!loginToken) {
-        setLoginError("Login successful but no token returned from server.");
+        setLoginError("Login succeeded but server did not return a JWT token.");
         return;
       }
 
-      // Store token
+      // Store JWT for subsequent authenticated requests
       localStorage.setItem("token", loginToken);
+      if (resp.onboardingToken) localStorage.setItem("onboardingToken", resp.onboardingToken);
+
       setIsAuthenticated(true);
       setShowLoginForm(false);
-      setUsername("");
       setPassword("");
     } catch (error) {
-      console.error("Login error:", error);
-
+      console.error("Onboarding login error:", error);
       const status = error.response?.status;
       const messageFromServer = error.response?.data?.message;
 
-      if (status === 404) {
-        setLoginError(messageFromServer || "Employee not found.");
-      } else if (status === 401) {
+      if (status === 401) {
         setLoginError(messageFromServer || "Invalid password.");
-      } else if (status === 400) {
-        setLoginError(messageFromServer || "Bad request. Please check your input.");
+      } else if (status === 404) {
+        setLoginError(messageFromServer || "Onboarding link or email not found.");
       } else {
         setLoginError(messageFromServer || "Login failed. Please try again.");
       }
@@ -151,6 +151,10 @@ export default function OnboardingLinkPage() {
 
         // Load progress data
         setProgressData(response);
+
+        // Prefill the login email (candidate view) so login shows locked email
+        const linkEmail = response.email || response.personal?.data?.email || response.personal?.email;
+        if (linkEmail) setUsername(linkEmail);
         setCompletionPercentage(response.completionPercentage || 0);
 
         // Load existing form data from backend
@@ -359,9 +363,9 @@ export default function OnboardingLinkPage() {
                 <input
                   type="email"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  readOnly
                   placeholder="your@email.com"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed"
                 />
               </div>
 
