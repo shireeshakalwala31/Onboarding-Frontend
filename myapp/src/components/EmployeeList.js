@@ -1,15 +1,86 @@
 import React, { useEffect, useState } from "react";
 import { generatePDF } from "../utils/pdf";
 import { normalizeEmployee } from "../utils/normalizeEmployee";
+import { generateOnboardingLink } from "../api/onboardingApi";
 
 export default function EmployeeList({ employees = [], onEdit, onDelete }) {
   const [list, setList] = useState([]);
   const [expanded, setExpanded] = useState(-1);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [linkFormData, setLinkFormData] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    password: "",
+  });
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState("");
+  const [linkSuccess, setLinkSuccess] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const normalized = (employees || []).map(normalizeEmployee);
     setList(normalized);
   }, [employees]);
+
+  const handleGenerateLinkClick = (emp, index) => {
+    setSelectedEmployee(index);
+    setLinkFormData({
+      email: emp.personal?.email || "",
+      firstName: emp.personal?.firstName || "",
+      lastName: emp.personal?.lastName || "",
+      password: "",
+    });
+    setLinkError("");
+    setLinkSuccess("");
+    setShowLinkModal(true);
+  };
+
+  const handleLinkFormChange = (e) => {
+    const { name, value } = e.target;
+    setLinkFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleGenerateLinkSubmit = async (e) => {
+    e.preventDefault();
+    setLinkError("");
+    setLinkSuccess("");
+
+    if (!linkFormData.email || !linkFormData.firstName || !linkFormData.lastName || !linkFormData.password) {
+      setLinkError("All fields are required");
+      return;
+    }
+
+    try {
+      setLinkLoading(true);
+      const response = await generateOnboardingLink(linkFormData);
+
+      setLinkSuccess(`Link generated successfully! URL: ${response.url || response.link}`);
+      setShowLinkModal(false);
+
+      // Copy to clipboard
+      const url = response.url || response.link;
+      if (url) {
+        navigator.clipboard.writeText(url);
+      }
+    } catch (error) {
+      console.error("Generate link error:", error);
+      const msg =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to generate onboarding link";
+      setLinkError(msg);
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const closeModal = () => {
+    setShowLinkModal(false);
+    setLinkFormData({ email: "", firstName: "", lastName: "", password: "" });
+    setLinkError("");
+  };
 
   return (
     <div className="card">
@@ -46,6 +117,13 @@ export default function EmployeeList({ employees = [], onEdit, onDelete }) {
                 className="text-purple-600"
               >
                 PDF
+              </button>
+
+              <button
+                onClick={() => handleGenerateLinkClick(emp, i)}
+                className="text-green-600"
+              >
+                Generate Link
               </button>
 
               <button
@@ -156,6 +234,130 @@ export default function EmployeeList({ employees = [], onEdit, onDelete }) {
           )}
         </div>
       ))}
+
+      {/* Success Message */}
+      {linkSuccess && (
+        <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-semibold">Success!</p>
+              <p className="text-sm break-all">{linkSuccess}</p>
+              <p className="text-xs mt-2 text-green-600">Link copied to clipboard</p>
+            </div>
+            <button
+              onClick={() => setLinkSuccess("")}
+              className="text-green-700 font-bold text-lg"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Link Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
+            <h2 className="text-2xl font-bold mb-4">Generate Onboarding Link</h2>
+            
+            <form onSubmit={handleGenerateLinkSubmit} className="space-y-4">
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={linkFormData.email}
+                  onChange={handleLinkFormChange}
+                  placeholder="employee@example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              {/* First Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={linkFormData.firstName}
+                  onChange={handleLinkFormChange}
+                  placeholder="John"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              {/* Last Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={linkFormData.lastName}
+                  onChange={handleLinkFormChange}
+                  placeholder="Doe"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={linkFormData.password}
+                    onChange={handleLinkFormChange}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2 text-sm text-gray-600"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {linkError && (
+                <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                  {linkError}
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={linkLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {linkLoading ? "Generating..." : "Generate Link"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

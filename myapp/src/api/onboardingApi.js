@@ -348,4 +348,13 @@ export const fetchOnboardingDataForLink = async (tokenOrSession) => {
   return api.get(`/onboarding-link/data/${tokenOrSession}`).then((r) => r.data);
 };
 
+/**
+ * Generate onboarding link for an employee
+ * @param {object} data - {email, firstName, lastName, password}
+ * @returns {Promise} - Link generation response with token and url
+ */
+export const generateOnboardingLink = async (data) => {
+  return api.post(`/onboarding-link/generate`, data).then((r) => r.data);
+};
+
 export default api;

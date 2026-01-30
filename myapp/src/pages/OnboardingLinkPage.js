@@ -3,11 +3,16 @@ import React, { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import EmployeeForm from "../components/EmployeeForm";
 import Sidebar from "../Sidebar";
+import axios from "axios";
 import {
   validateOnboardingLink,
   saveLinkSection,
   submitLinkDeclaration,
 } from "../api/onboardingApi";
+
+const AUTH_BASE_URL =
+  process.env.REACT_APP_API_BASE_URL ||
+  "https://offer-documentation.onrender.com/api";
 
 export default function OnboardingLinkPage() {
   const { token } = useParams();
@@ -50,7 +55,76 @@ export default function OnboardingLinkPage() {
     declaration: {},
   });
 
+  // Auth state for login
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLoginForm, setShowLoginForm] = useState(true);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
+
   const currentStep = steps[currentStepIndex];
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    const token_local = localStorage.getItem("token");
+    if (token_local) {
+      setIsAuthenticated(true);
+      setShowLoginForm(false);
+    }
+  }, []);
+
+  // Handle login
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+
+    if (!username || !password) {
+      setLoginError("Please enter email and password");
+      return;
+    }
+
+    try {
+      setLoginLoading(true);
+
+      const response = await axios.post(`${AUTH_BASE_URL}/employee/login`, {
+        email: username,
+        password,
+      });
+
+      const { token: loginToken } = response.data;
+
+      if (!loginToken) {
+        setLoginError("Login successful but no token returned from server.");
+        return;
+      }
+
+      // Store token
+      localStorage.setItem("token", loginToken);
+      setIsAuthenticated(true);
+      setShowLoginForm(false);
+      setUsername("");
+      setPassword("");
+    } catch (error) {
+      console.error("Login error:", error);
+
+      const status = error.response?.status;
+      const messageFromServer = error.response?.data?.message;
+
+      if (status === 404) {
+        setLoginError(messageFromServer || "Employee not found.");
+      } else if (status === 401) {
+        setLoginError(messageFromServer || "Invalid password.");
+      } else if (status === 400) {
+        setLoginError(messageFromServer || "Bad request. Please check your input.");
+      } else {
+        setLoginError(messageFromServer || "Login failed. Please try again.");
+      }
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   // Validate link and load progress on mount
   useEffect(() => {
@@ -112,7 +186,7 @@ export default function OnboardingLinkPage() {
     };
 
     validateAndLoadProgress();
-  }, [token]);
+  }, [token, isAuthenticated]);
 
   // Navigate to named step (from Sidebar)
   const goToStep = (id) => {
@@ -236,6 +310,101 @@ export default function OnboardingLinkPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Validating your onboarding link...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated
+  if (showLoginForm) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 px-4">
+        <div className="w-full max-w-5xl bg-white rounded-[32px] shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+          {/* Left Section */}
+          <div className="relative bg-gradient-to-br from-blue-700 via-blue-600 to-blue-500 text-white p-10 md:p-12 flex flex-col justify-center">
+            <div className="absolute -left-20 -top-20 w-56 h-56 bg-blue-500/40 rounded-full" />
+            <div className="absolute -left-10 bottom-10 w-40 h-40 bg-blue-900/40 rounded-full" />
+            <div className="absolute -right-10 bottom-[-40px] w-40 h-40 bg-blue-400/60 rounded-full" />
+
+            <div className="relative">
+              <p className="text-sm uppercase tracking-[0.25em] mb-2 opacity-80">
+                Welcome to
+              </p>
+              <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6">
+                Employee Onboarding
+              </h1>
+              <p className="text-base opacity-90 leading-relaxed">
+                Please log in to complete your onboarding process. Enter your email and password to get started.
+              </p>
+            </div>
+          </div>
+
+          {/* Right Section - Login Form */}
+          <div className="p-10 md:p-12 flex flex-col justify-center">
+            <div className="mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+                Login to Onboard
+              </h2>
+              <p className="text-gray-600">
+                Enter your credentials to access your onboarding form
+              </p>
+            </div>
+
+            <form onSubmit={handleLoginSubmit} className="space-y-6">
+              {/* Email Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
+                />
+              </div>
+
+              {/* Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-gray-600 hover:text-gray-800"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {loginError && (
+                <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                  {loginError}
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loginLoading ? "Logging in..." : "Login"}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
