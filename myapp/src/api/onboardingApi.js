@@ -297,6 +297,15 @@ export const validateOnboardingLink = async (token) => {
 };
 
 /**
+ * Get onboarding link login info (prefill email and details)
+ * @param {string} token - Unique onboarding link token
+ * @returns {Promise} - Link info with candidate email and details
+ */
+export const getOnboardingLinkLoginInfo = async (token) => {
+  return api.get(`/onboarding-link/${token}/login`).then((r) => r.data);
+};
+
+/**
  * Save a specific section for onboarding link
  * @param {string} token - Unique onboarding link token
  * @param {string} section - Section name (personal, pf, academic, experience, family)
@@ -336,8 +345,21 @@ export const getLinkProgress = async (token) => {
  * 2. on sign submit call authenticateOnboardingLink(token, { email, dob })
  * 3. on success use returned data or session token to fetch/continue onboarding
  */
+/**
+ * Login to onboarding link with email and password
+ * Backend expects a POST to `/onboarding-link/login` with { token, email, password }
+ * @param {string} token - onboarding token
+ * @param {object} credentials - { email, password }
+ * @returns {Promise} - Login response (should include JWT token)
+ */
 export const authenticateOnboardingLink = async (token, credentials) => {
-  return api.post(`/onboarding-link/authenticate/${token}`, credentials).then((r) => r.data);
+  return api
+    .post(`/onboarding-link/login`, {
+      token,
+      email: credentials.email,
+      password: credentials.password,
+    })
+    .then((r) => r.data);
 };
 
 /**

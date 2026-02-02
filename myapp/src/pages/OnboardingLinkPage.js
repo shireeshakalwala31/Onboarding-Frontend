@@ -9,6 +9,7 @@ import {
   submitLinkDeclaration,
   authenticateOnboardingLink,
 } from "../api/onboardingApi";
+import { getOnboardingLinkLoginInfo } from "../api/onboardingApi";
 
 const AUTH_BASE_URL =
   process.env.REACT_APP_API_BASE_URL ||
@@ -74,6 +75,21 @@ export default function OnboardingLinkPage() {
       setShowLoginForm(false);
     }
   }, []);
+
+  // Prefill email by fetching login info (some backends expose a dedicated login-info endpoint)
+  useEffect(() => {
+    const fetchLoginInfo = async () => {
+      if (!token || isAuthenticated) return;
+      try {
+        const info = await getOnboardingLinkLoginInfo(token);
+        if (info && info.email) setUsername((u) => (u || info.email));
+      } catch (err) {
+        // ignore; validateOnboardingLink will still be used for progress
+        console.debug("getOnboardingLinkLoginInfo failed:", err?.message || err);
+      }
+    };
+    fetchLoginInfo();
+  }, [token, isAuthenticated]);
 
   // Handle login (candidate via onboarding link)
   const handleLoginSubmit = async (e) => {
