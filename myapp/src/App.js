@@ -37,10 +37,18 @@ function App() {
           <Route path="/reset" element={<ResetPassword />} />
 
           {/* Onboarding link page (Public - candidate) */}
+{/* Candidate onboarding login entry */}
+<Route
+  path="/onboarding/:token/login"
+  element={<OnboardingLinkPage />}
+/>
+
+{/* Candidate onboarding form (same page, after login) */}
 <Route
   path="/onboarding/:token"
   element={<OnboardingLinkPage />}
 />
+
 
 {/* Onboarding login page (Public - candidate login form) */}
 
