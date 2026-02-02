@@ -45,7 +45,7 @@ function App() {
 {/* Onboarding login page (Public - candidate login form) */}
 <Route
   path="/onboarding/:token/login"
-  element={<OnboardingLinkPage />}
+  element={<Login />}
 />
 
 {/* Onboarding form page (Admin/Internal) */}
