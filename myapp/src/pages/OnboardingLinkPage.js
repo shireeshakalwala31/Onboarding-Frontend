@@ -11,9 +11,7 @@ import {
 } from "../api/onboardingApi";
 import { getOnboardingLinkLoginInfo } from "../api/onboardingApi";
 
-const AUTH_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL ||
-  "https://offer-documentation.onrender.com/api";
+
 
 export default function OnboardingLinkPage() {
   const { token } = useParams();
@@ -69,7 +67,7 @@ export default function OnboardingLinkPage() {
 
   // Check if user is already authenticated
   useEffect(() => {
-    const token_local = localStorage.getItem("token");
+    const token_local = localStorage.getItem("authToken");
     if (token_local) {
       setIsAuthenticated(true);
       setShowLoginForm(false);
@@ -119,12 +117,17 @@ export default function OnboardingLinkPage() {
       }
 
       // Store JWT for subsequent authenticated requests
-      localStorage.setItem("token", loginToken);
+      localStorage.setItem("authToken", loginToken);
+localStorage.setItem("onboardingToken", token);
+
       if (resp.onboardingToken) localStorage.setItem("onboardingToken", resp.onboardingToken);
 
       setIsAuthenticated(true);
       setShowLoginForm(false);
       setPassword("");
+
+      navigate(`/onboarding/${token}`, { replace: true });
+
     } catch (error) {
       console.error("Onboarding login error:", error);
       const status = error.response?.status;
@@ -144,6 +147,7 @@ export default function OnboardingLinkPage() {
 
   // Validate link and load progress on mount
   useEffect(() => {
+      if (!isAuthenticated) return;
     const validateAndLoadProgress = async () => {
       if (!token) {
         setErrorMessage("Invalid onboarding link. Token is missing.");
