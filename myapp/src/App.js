@@ -18,26 +18,35 @@ function App() {
         <Routes>
 
           {/* ---------- NORMAL AUTH (OPTIONAL) ---------- */}
-          <Route path="/onboarding/:token/login" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="/reset" element={<ResetPassword />} />
 
           {/* ---------- CANDIDATE ONBOARDING ---------- */}
           {/* Step 1: Candidate opens email link → LOGIN UI */}
-          {/* <Route
+          <Route
             path="/onboarding/:token/login"
             element={<OnboardingLinkPage />}
-          /> */}
+          />
 
           {/* Step 2: After login → SAME PAGE shows onboarding form */}
-          {/* <Route
+          <Route
             path="/onboarding/:token"
             element={<OnboardingLinkPage />}
-          /> */}
+          />
 
           {/* ---------- FALLBACK ---------- */}
           <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* Onboarding form page (Admin/Internal) */}
+<Route
+  path="/onboarding"
+  element={
+    <PrivateRoute>
+      <OnboardingFormPage />
+    </PrivateRoute>
+  }
+/>
 
         </Routes>
       </Router>
