@@ -19,17 +19,25 @@ function App() {
       <Router>
         <Routes>
 
-          {/* Normal auth */}
+          {/* 🔹 Candidate onboarding login */}
+          <Route
+            path="/onboarding/:id/login"
+            element={<Login />}
+          />
+
+          {/* 🔹 Candidate onboarding form */}
+          <Route
+            path="/onboarding/:id"
+            element={<OnboardingLinkPage />}
+          />
+
+          {/* 🔹 Normal auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="/reset" element={<ResetPassword />} />
 
-          {/* Candidate onboarding */}
-          <Route path="/onboarding/:token/login" element={<OnboardingLinkPage />} />
-          <Route path="/onboarding/:token" element={<OnboardingLinkPage />} />
-
-          {/* Admin onboarding (protected) */}
+          {/* 🔹 Admin (protected) */}
           <Route
             path="/onboarding"
             element={
@@ -39,7 +47,7 @@ function App() {
             }
           />
 
-          {/* Fallback */}
+          {/* 🔹 Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />
 
         </Routes>
