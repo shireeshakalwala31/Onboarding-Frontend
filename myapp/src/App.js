@@ -1,5 +1,4 @@
 // src/App.js
-import React from "react";
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
@@ -9,7 +8,10 @@ import ResetPassword from "./pages/ResetPassword";
 import ForgotPassword from "./pages/ForgotPasswword";
 
 import OnboardingLinkPage from "./pages/OnboardingLinkPage";
+import OnboardingFormPage from "./pages/OnboardingFormPage";
+
 import { AuthProvider } from "./contexts/AuthContext";
+import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
   return (
@@ -17,36 +19,28 @@ function App() {
       <Router>
         <Routes>
 
-          {/* ---------- NORMAL AUTH (OPTIONAL) ---------- */}
+          {/* Normal auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="/reset" element={<ResetPassword />} />
 
-          {/* ---------- CANDIDATE ONBOARDING ---------- */}
-          {/* Step 1: Candidate opens email link → LOGIN UI */}
+          {/* Candidate onboarding */}
+          <Route path="/onboarding/:token/login" element={<OnboardingLinkPage />} />
+          <Route path="/onboarding/:token" element={<OnboardingLinkPage />} />
+
+          {/* Admin onboarding (protected) */}
           <Route
-            path="/onboarding/:token/login"
-            element={<OnboardingLinkPage />}
+            path="/onboarding"
+            element={
+              <PrivateRoute>
+                <OnboardingFormPage />
+              </PrivateRoute>
+            }
           />
 
-          {/* Step 2: After login → SAME PAGE shows onboarding form */}
-          <Route
-            path="/onboarding/:token"
-            element={<OnboardingLinkPage />}
-          />
-
-          {/* ---------- FALLBACK ---------- */}
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />
-          {/* Onboarding form page (Admin/Internal) */}
-<Route
-  path="/onboarding"
-  element={
-    <PrivateRoute>
-      <OnboardingFormPage />
-    </PrivateRoute>
-  }
-/>
 
         </Routes>
       </Router>
