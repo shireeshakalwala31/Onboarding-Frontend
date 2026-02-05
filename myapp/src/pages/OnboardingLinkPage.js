@@ -67,7 +67,7 @@ export default function OnboardingLinkPage() {
 
   // Check if user is already authenticated
   useEffect(() => {
-    const token_local = localStorage.getItem("authToken");
+    const token_local = localStorage.getItem("token");
     if (token_local) {
       setIsAuthenticated(true);
       setShowLoginForm(false);
@@ -103,22 +103,22 @@ export default function OnboardingLinkPage() {
       setLoginLoading(true);
 
       // Use onboarding link authentication endpoint
-      const resp = await authenticateOnboardingLink(token, {
-        email: username,
-        password,
-      });
+      // authenticateOnboardingLink expects (token, { email, password })
+      const resp = await authenticateOnboardingLink(token, { email: username, password });
 
       // Expecting { token: <jwt>, onboardingToken?: <token>, candidate?: {...} }
-      const loginToken = resp.token || resp.data?.token;
+      const loginToken = resp.token || resp.data?.token || resp?.token;
 
       if (!loginToken) {
         setLoginError("Login succeeded but server did not return a JWT token.");
         return;
       }
 
-      // Store JWT for subsequent authenticated requests
+      // Store JWT for subsequent authenticated requests (API reads `token`)
+      localStorage.setItem("token", loginToken);
+      // Keep `authToken` for backward compatibility
       localStorage.setItem("authToken", loginToken);
-localStorage.setItem("onboardingToken", token);
+      localStorage.setItem("onboardingToken", token);
 
       if (resp.onboardingToken) localStorage.setItem("onboardingToken", resp.onboardingToken);
 

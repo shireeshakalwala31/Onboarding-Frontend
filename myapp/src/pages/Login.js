@@ -1,6 +1,6 @@
 // src/components/Login.js
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 
 // Base URL for your backend AUTH routes
@@ -11,12 +11,26 @@ const AUTH_BASE_URL =
 
 const Login = () => {
   const navigate = useNavigate();
+  const { id: onboardingToken } = useParams();
 
   // This holds EMAIL even though label says "User Name"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // If we are on an onboarding-link login route, prefetch email for convenience
+  React.useEffect(() => {
+    if (!onboardingToken) return;
+    (async () => {
+      try {
+        const resp = await axios.get(`${AUTH_BASE_URL}/onboarding-link/${onboardingToken}/login`);
+        if (resp?.data?.email) setUsername((u) => u || resp.data.email);
+      } catch (err) {
+        console.debug("Prefill onboarding email failed:", err?.message || err);
+      }
+    })();
+  }, [onboardingToken]);
 
   const goToRegister = () => {
     navigate("/register");
@@ -37,32 +51,53 @@ const Login = () => {
     try {
       setLoading(true);
 
-      // 🔗 CALL YOUR BACKEND LOGIN API
-      // backend expects { email, password }
-      const response = await axios.post(`${AUTH_BASE_URL}/employee/login`, {
-        email: username,
-        password,
-      });
-      console.log("Login response:", response.status, response.data);
+      if (onboardingToken) {
+        // Onboarding login uses token + email + password
+        const response = await axios.post(`${AUTH_BASE_URL}/onboarding-link/login`, {
+          token: onboardingToken,
+          email: username,
+          password,
+        });
+        console.log("Onboarding login response:", response.status, response.data);
 
-      // backend returns { message, token, admin }
-      const { token, admin } = response.data;
+        const { token } = response.data;
+        if (!token) {
+          alert("Login successful but no token returned from server.");
+          return;
+        }
 
-      if (!token) {
-        alert("Login successful but no token returned from server.");
-        return;
+        localStorage.setItem("token", token);
+        localStorage.setItem("onboardingToken", onboardingToken);
+
+        // Navigate to onboarding form for this token
+        navigate(`/onboarding/${onboardingToken}`);
+      } else {
+        // Default employee / admin login flow
+        const response = await axios.post(`${AUTH_BASE_URL}/employee/login`, {
+          email: username,
+          password,
+        });
+        console.log("Login response:", response.status, response.data);
+
+        // backend returns { message, token, admin }
+        const { token, admin } = response.data;
+
+        if (!token) {
+          alert("Login successful but no token returned from server.");
+          return;
+        }
+
+        // 🔐 store token for verifyToken in employee routes
+        localStorage.setItem("token", token);
+
+        // optional: store admin info
+        if (admin) {
+          localStorage.setItem("admin", JSON.stringify(admin));
+        }
+
+        // ✅ Go to onboarding page
+        navigate("/onboarding");
       }
-
-      // 🔐 store token for verifyToken in employee routes
-      localStorage.setItem("token", token);
-
-      // optional: store admin info
-      if (admin) {
-        localStorage.setItem("admin", JSON.stringify(admin));
-      }
-
-      // ✅ Go to onboarding page
-      navigate("/onboarding");
     } catch (error) {
       console.error("Login error:", error);
 
