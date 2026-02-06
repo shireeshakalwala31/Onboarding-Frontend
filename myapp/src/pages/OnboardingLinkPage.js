@@ -1,4 +1,3 @@
-// src/pages/OnboardingLinkPage.js
 import React, { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import EmployeeForm from "../components/EmployeeForm";
@@ -20,8 +19,15 @@ export default function OnboardingLinkPage() {
   // 🔑 detect /login route
   const isLoginRoute = location.pathname.endsWith("/login");
 
-  // steps
-  const steps = ["personal", "pf", "academic", "experience", "family", "declaration"];
+  // steps (must match backend keys)
+  const steps = [
+    "personal",
+    "pf",
+    "academic",
+    "experience",
+    "family",
+    "declaration",
+  ];
 
   const refs = {
     personal: useRef(null),
@@ -59,7 +65,8 @@ export default function OnboardingLinkPage() {
 
   // ---------------- AUTH CHECK ----------------
   useEffect(() => {
-    if (localStorage.getItem("token")) {
+    const jwt = localStorage.getItem("token");
+    if (jwt) {
       setIsAuthenticated(true);
     }
   }, []);
@@ -69,7 +76,9 @@ export default function OnboardingLinkPage() {
     if (!isLoginRoute || !token) return;
 
     getOnboardingLinkLoginInfo(token)
-      .then(res => res?.email && setUsername(res.email))
+      .then((res) => {
+        if (res?.email) setUsername(res.email);
+      })
       .catch(() => {});
   }, [token, isLoginRoute]);
 
@@ -77,6 +86,11 @@ export default function OnboardingLinkPage() {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError("");
+
+    if (!password) {
+      setLoginError("Password is required");
+      return;
+    }
 
     try {
       setLoginLoading(true);
@@ -90,6 +104,8 @@ export default function OnboardingLinkPage() {
       localStorage.setItem("onboardingToken", res.onboardingToken);
 
       setIsAuthenticated(true);
+
+      // 🚀 move to form URL (remove /login)
       navigate(`/onboarding/${token}`, { replace: true });
 
     } catch (err) {
@@ -106,11 +122,12 @@ export default function OnboardingLinkPage() {
     (async () => {
       try {
         setLoading(true);
+
         const res = await validateOnboardingLink(token);
 
         if (res.isExpired) {
           setLinkExpired(true);
-          setErrorMessage("Onboarding link expired");
+          setErrorMessage("This onboarding link has expired");
           return;
         }
 
@@ -123,9 +140,11 @@ export default function OnboardingLinkPage() {
           declaration: res.declaration?.data || {},
         });
 
-        const next = res.nextSection || "personal";
-        setCurrentStepIndex(steps.indexOf(next));
-        setActive(next);
+        const nextSection = res.nextSection || "personal";
+        const idx = steps.indexOf(nextSection);
+
+        setCurrentStepIndex(idx >= 0 ? idx : 0);
+        setActive(nextSection);
 
       } catch {
         setErrorMessage("Invalid onboarding link");
@@ -136,18 +155,32 @@ export default function OnboardingLinkPage() {
     })();
   }, [isAuthenticated, isLoginRoute, token]);
 
+  // ---------------- SIDEBAR NAV ----------------
+  const goToStep = (id) => {
+    const idx = steps.indexOf(id);
+    if (idx >= 0) {
+      setCurrentStepIndex(idx);
+      setActive(id);
+    }
+  };
+
   // ---------------- SAVE ----------------
   const handleSave = async (data) => {
     const section = currentStep === "academic" ? "academic" : currentStep;
+
     await saveLinkSection(token, section, data);
-    setCurrentStepIndex(i => Math.min(i + 1, steps.length - 1));
-    setActive(steps[Math.min(currentStepIndex + 1, steps.length - 1)]);
+
+    setCurrentStepIndex((prev) => {
+      const next = Math.min(prev + 1, steps.length - 1);
+      setActive(steps[next]);
+      return next;
+    });
   };
 
   // ---------------- DECLARATION ----------------
   const handleDeclarationSubmit = async () => {
     await submitLinkDeclaration(token, formData.declaration);
-    alert("Onboarding completed");
+    alert("Onboarding completed successfully");
     navigate("/login");
   };
 
@@ -159,7 +192,11 @@ export default function OnboardingLinkPage() {
       <form onSubmit={handleLoginSubmit} className="p-10 max-w-md mx-auto">
         <h2 className="text-2xl mb-4">Onboarding Login</h2>
 
-        <input value={username} readOnly className="w-full mb-3 p-2 border" />
+        <input
+          value={username}
+          readOnly
+          className="w-full mb-3 p-2 border bg-gray-100"
+        />
 
         <input
           type="password"
@@ -171,7 +208,10 @@ export default function OnboardingLinkPage() {
 
         {loginError && <p className="text-red-600">{loginError}</p>}
 
-        <button className="bg-blue-600 text-white px-4 py-2">
+        <button
+          disabled={loginLoading}
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+        >
           {loginLoading ? "Logging in..." : "Login"}
         </button>
       </form>
@@ -188,20 +228,30 @@ export default function OnboardingLinkPage() {
     return <div className="p-10 text-center">{errorMessage}</div>;
   }
 
-  // 📝 FORM
+  // 📝 FORM (FINAL LAYOUT – SAME AS ADMIN PAGE)
   return (
-    <div className="flex">
-      <Sidebar steps={steps} active={active} />
-      <EmployeeForm
-        refs={refs}
+    <div className="min-h-screen flex bg-transparent">
+      <Sidebar
         steps={steps}
-        currentStep={currentStep}
-        initialData={formData}
-        onSave={handleSave}
-        token={token}
-        onDeclarationSubmit={handleDeclarationSubmit}
-        mode="link"
+        active={active}
+        goToStep={goToStep}
       />
+
+      {/* 🔥 REQUIRED OFFSET FOR FIXED SIDEBAR */}
+      <main className="ml-64 p-10 w-full">
+        <EmployeeForm
+          refs={refs}
+          steps={steps}
+          currentStep={currentStep}
+          currentStepIndex={currentStepIndex}
+          totalSteps={steps.length}
+          initialData={formData}
+          onSave={handleSave}
+          token={token}
+          onDeclarationSubmit={handleDeclarationSubmit}
+          mode="link"
+        />
+      </main>
     </div>
   );
 }
