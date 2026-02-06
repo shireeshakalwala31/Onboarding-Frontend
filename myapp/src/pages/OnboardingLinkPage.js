@@ -1,3 +1,4 @@
+// src/pages/OnboardingLinkPage.js
 import React, { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import EmployeeForm from "../components/EmployeeForm";
@@ -8,27 +9,19 @@ import {
   saveLinkSection,
   submitLinkDeclaration,
   authenticateOnboardingLink,
+  getOnboardingLinkLoginInfo,
 } from "../api/onboardingApi";
-
-import { getOnboardingLinkLoginInfo } from "../api/onboardingApi";
 
 export default function OnboardingLinkPage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔑 Detect login URL correctly
+  // 🔑 detect /login route
   const isLoginRoute = location.pathname.endsWith("/login");
 
-  // Steps
-  const steps = [
-    "personal",
-    "pf",
-    "academic",
-    "experience",
-    "family",
-    "declaration",
-  ];
+  // steps
+  const steps = ["personal", "pf", "academic", "experience", "family", "declaration"];
 
   const refs = {
     personal: useRef(null),
@@ -40,13 +33,14 @@ export default function OnboardingLinkPage() {
   };
 
   // ---------------- STATE ----------------
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [linkExpired, setLinkExpired] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [progressData, setProgressData] = useState(null);
-  const [completionPercentage, setCompletionPercentage] = useState(0);
+
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [active, setActive] = useState("personal");
+  const currentStep = steps[currentStepIndex];
 
   const [formData, setFormData] = useState({
     personal: {},
@@ -57,82 +51,57 @@ export default function OnboardingLinkPage() {
     declaration: {},
   });
 
-  // Auth
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // login
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
-  const currentStep = steps[currentStepIndex];
-
   // ---------------- AUTH CHECK ----------------
   useEffect(() => {
-    const jwt = localStorage.getItem("token");
-    if (jwt) {
+    if (localStorage.getItem("token")) {
       setIsAuthenticated(true);
     }
   }, []);
 
-  // ---------------- PREFILL EMAIL ----------------
+  // ---------------- PREFILL EMAIL (LOGIN ONLY) ----------------
   useEffect(() => {
-    if (!token || isAuthenticated) return;
+    if (!isLoginRoute || !token) return;
 
-    (async () => {
-      try {
-        const info = await getOnboardingLinkLoginInfo(token);
-        if (info?.email) setUsername(info.email);
-      } catch (e) {
-        console.log("Prefill email skipped");
-      }
-    })();
-  }, [token, isAuthenticated]);
+    getOnboardingLinkLoginInfo(token)
+      .then(res => res?.email && setUsername(res.email))
+      .catch(() => {});
+  }, [token, isLoginRoute]);
 
   // ---------------- LOGIN ----------------
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError("");
 
-    if (!password) {
-      setLoginError("Password is required");
-      return;
-    }
-
     try {
       setLoginLoading(true);
 
-      const resp = await authenticateOnboardingLink(token, {
+      const res = await authenticateOnboardingLink(token, {
         email: username,
         password,
       });
 
-      if (!resp?.token) {
-        setLoginError("Invalid login response");
-        return;
-      }
-
-      // 🔑 STORE EXACTLY WHAT BACKEND RETURNS
-      localStorage.setItem("token", resp.token);
-      localStorage.setItem("onboardingToken", resp.onboardingToken);
+      localStorage.setItem("token", res.token);
+      localStorage.setItem("onboardingToken", res.onboardingToken);
 
       setIsAuthenticated(true);
-      setPassword("");
-
-      // 🚀 MOVE TO FORM URL (NO /login)
       navigate(`/onboarding/${token}`, { replace: true });
 
     } catch (err) {
-      setLoginError(
-        err.response?.data?.message || "Invalid password"
-      );
+      setLoginError(err.response?.data?.message || "Invalid password");
     } finally {
       setLoginLoading(false);
     }
   };
 
-  // ---------------- LOAD PROGRESS (ONLY AFTER LOGIN) ----------------
+  // ---------------- LOAD ONBOARDING (AFTER LOGIN) ----------------
   useEffect(() => {
-    if (!isAuthenticated || !token || isLoginRoute) return;
+    if (isLoginRoute || !isAuthenticated || !token) return;
 
     (async () => {
       try {
@@ -141,12 +110,9 @@ export default function OnboardingLinkPage() {
 
         if (res.isExpired) {
           setLinkExpired(true);
-          setErrorMessage("This onboarding link is expired");
+          setErrorMessage("Onboarding link expired");
           return;
         }
-
-        setProgressData(res);
-        setCompletionPercentage(res.completionPercentage || 0);
 
         setFormData({
           personal: res.personal?.data || {},
@@ -161,89 +127,80 @@ export default function OnboardingLinkPage() {
         setCurrentStepIndex(steps.indexOf(next));
         setActive(next);
 
-      } catch (e) {
-        setErrorMessage("Failed to validate onboarding link");
+      } catch {
+        setErrorMessage("Invalid onboarding link");
         setLinkExpired(true);
       } finally {
         setLoading(false);
       }
     })();
-  }, [isAuthenticated, token, isLoginRoute]);
+  }, [isAuthenticated, isLoginRoute, token]);
 
-  // ---------------- SAVE SECTION ----------------
+  // ---------------- SAVE ----------------
   const handleSave = async (data) => {
     const section = currentStep === "academic" ? "academic" : currentStep;
     await saveLinkSection(token, section, data);
-    const updated = await validateOnboardingLink(token);
-    setProgressData(updated);
-    setCompletionPercentage(updated.completionPercentage || 0);
-    nextStep();
-  };
-
-  const nextStep = () => {
-    setCurrentStepIndex((i) => Math.min(i + 1, steps.length - 1));
+    setCurrentStepIndex(i => Math.min(i + 1, steps.length - 1));
     setActive(steps[Math.min(currentStepIndex + 1, steps.length - 1)]);
   };
 
   // ---------------- DECLARATION ----------------
   const handleDeclarationSubmit = async () => {
     await submitLinkDeclaration(token, formData.declaration);
-    alert("Onboarding completed successfully");
+    alert("Onboarding completed");
     navigate("/login");
   };
 
   // ---------------- UI ----------------
-  if (loading && !isLoginRoute) {
-    return <div className="p-10 text-center">Loading...</div>;
-  }
 
-  // 🔐 LOGIN PAGE (ONLY FOR /login)
-  if (!isAuthenticated && isLoginRoute) {
+  // 🔐 LOGIN PAGE
+  if (isLoginRoute && !isAuthenticated) {
     return (
       <form onSubmit={handleLoginSubmit} className="p-10 max-w-md mx-auto">
         <h2 className="text-2xl mb-4">Onboarding Login</h2>
 
-        <input
-          value={username}
-          readOnly
-          className="w-full mb-3 p-2 border"
-        />
+        <input value={username} readOnly className="w-full mb-3 p-2 border" />
 
         <input
           type="password"
+          className="w-full mb-3 p-2 border"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="w-full mb-3 p-2 border"
         />
 
         {loginError && <p className="text-red-600">{loginError}</p>}
 
-        <button
-          disabled={loginLoading}
-          className="bg-blue-600 text-white px-4 py-2"
-        >
+        <button className="bg-blue-600 text-white px-4 py-2">
           {loginLoading ? "Logging in..." : "Login"}
         </button>
       </form>
     );
   }
 
+  // ⏳ LOADING
+  if (loading) {
+    return <div className="p-10 text-center">Loading onboarding…</div>;
+  }
+
+  // ❌ ERROR
   if (linkExpired || errorMessage) {
     return <div className="p-10 text-center">{errorMessage}</div>;
   }
 
-  // 📝 ONBOARDING FORM
+  // 📝 FORM
   return (
     <div className="flex">
       <Sidebar steps={steps} active={active} />
       <EmployeeForm
         refs={refs}
-        currentStep={currentStep}
         steps={steps}
+        currentStep={currentStep}
+        initialData={formData}
         onSave={handleSave}
         token={token}
         onDeclarationSubmit={handleDeclarationSubmit}
+        mode="link"
       />
     </div>
   );
