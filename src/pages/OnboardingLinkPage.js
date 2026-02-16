@@ -164,25 +164,69 @@ export default function OnboardingLinkPage() {
     }
   };
 
+  // helper to map current section to payload from full form
+  const mapSectionPayload = (section, form) => {
+    switch (section) {
+      case "personal":
+        return form.personal || {};
+      case "pf":
+        return form.pf || {};
+      case "academic":
+        return form.academics || [];
+      case "experience":
+        return form.experience || [];
+      case "family":
+        return form.family || [];
+      case "declaration":
+        return form.declaration || {};
+      default:
+        return {};
+    }
+  };
+
   // ---------------- SAVE ----------------
   const handleSave = async (data) => {
-    const section = currentStep === "academic" ? "academic" : currentStep;
-    
-    // Use onboardingToken from localStorage if available, otherwise fallback to URL token
+    const section = currentStep; // "academic" already matches backend key
     const onboardingToken = localStorage.getItem("onboardingToken") || token;
 
-    await saveLinkSection(onboardingToken, section, data);
+    // derive only the current section payload from the full form object
+    const payload = mapSectionPayload(section, data);
 
-    setCurrentStepIndex((prev) => {
-      const next = Math.min(prev + 1, steps.length - 1);
-      setActive(steps[next]);
-      return next;
-    });
+    // minimal client validation to avoid 500s for personal
+    if (section === "personal") {
+      const required = ["firstName", "lastName", "email", "dateOfBirth", "gender"];
+      const missing = required.filter((k) => !payload?.[k]);
+      if (missing.length) {
+        alert(`Please fill required fields: ${missing.join(", ")}`);
+        return;
+      }
+    }
+
+    try {
+      await saveLinkSection(onboardingToken, section, payload);
+
+      // sync local state after a successful save
+      setFormData((prev) => {
+        const next = { ...prev };
+        if (section === "academic") next.academics = payload;
+        else next[section] = payload;
+        return next;
+      });
+
+      // advance to next step
+      setCurrentStepIndex((prev) => {
+        const next = Math.min(prev + 1, steps.length - 1);
+        setActive(steps[next]);
+        return next;
+      });
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Failed to save section";
+      alert(msg);
+    }
   };
 
   // ---------------- DECLARATION ----------------
   const handleDeclarationSubmit = async () => {
-    // Use onboardingToken from localStorage if available, otherwise fallback to URL token
     const onboardingToken = localStorage.getItem("onboardingToken") || token;
     await submitLinkDeclaration(onboardingToken, formData.declaration);
     alert("Onboarding completed successfully");
