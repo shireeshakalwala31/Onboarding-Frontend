@@ -167,8 +167,11 @@ export default function OnboardingLinkPage() {
   // ---------------- SAVE ----------------
   const handleSave = async (data) => {
     const section = currentStep === "academic" ? "academic" : currentStep;
+    
+    // Use onboardingToken from localStorage if available, otherwise fallback to URL token
+    const onboardingToken = localStorage.getItem("onboardingToken") || token;
 
-    await saveLinkSection(token, section, data);
+    await saveLinkSection(onboardingToken, section, data);
 
     setCurrentStepIndex((prev) => {
       const next = Math.min(prev + 1, steps.length - 1);
@@ -179,7 +182,9 @@ export default function OnboardingLinkPage() {
 
   // ---------------- DECLARATION ----------------
   const handleDeclarationSubmit = async () => {
-    await submitLinkDeclaration(token, formData.declaration);
+    // Use onboardingToken from localStorage if available, otherwise fallback to URL token
+    const onboardingToken = localStorage.getItem("onboardingToken") || token;
+    await submitLinkDeclaration(onboardingToken, formData.declaration);
     alert("Onboarding completed successfully");
     navigate("/login");
   };
