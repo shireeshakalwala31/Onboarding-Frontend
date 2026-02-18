@@ -273,7 +273,7 @@ const Personal = forwardRef(function Personal(
     }
   };
 
-  const handleNextClick = () => {
+  const handleNextClick = async () => {
     setTouched({
       ...touched,
       firstName: true,
@@ -292,8 +292,20 @@ const Personal = forwardRef(function Personal(
       return;
     }
 
-    handleSaveClick();
-    onNext && onNext();
+    // Call handleSaveClick and wait for it to complete before navigating
+    // This ensures the data is saved before moving to the next section
+    try {
+      await handleSaveClick();
+    } catch (err) {
+      console.error("Error saving personal info:", err);
+      // Don't navigate if save fails
+      return;
+    }
+    
+    // Only navigate after successful save
+    if (onNext) {
+      onNext();
+    }
   };
 
   /* ----------------------- UI ----------------------- */

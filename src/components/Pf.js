@@ -123,8 +123,11 @@ export default function PF({ form = {}, setForm, refs = {}, onPrev, onSave, onNe
 
   // Build payload matching backend expected field names
   const buildMapped = () => {
+    // Get draftId from localStorage for proper record identification
+    const draftId = localStorage.getItem("draftId") || "";
+
     return {
-      draftId: localStorage.getItem("draftId") || "",
+      draftId: draftId,
       pfAction: pf.pfAction || "",
 
       // sensitive fields
@@ -155,9 +158,9 @@ export default function PF({ form = {}, setForm, refs = {}, onPrev, onSave, onNe
       identificationMark1: pf.idMark1 ? String(pf.idMark1).trim() : "",
       identificationMark2: pf.idMark2 ? String(pf.idMark2).trim() : "",
 
-      // contact
-      mobileNumber: pf.mobile ? String(pf.mobile).trim() : "",
-      email: pf.email ? String(pf.email).trim().toLowerCase() : ""
+      // contact - mobile is required, but don't send email here as it's already saved in Personal section
+      // sending email again can cause duplicate key errors if backend uses INSERT instead of UPDATE
+      mobileNumber: pf.mobile ? String(pf.mobile).trim() : ""
     };
   };
 
