@@ -181,10 +181,15 @@ export default function EmployeeForm({
     }
   };
 
-  const handleSaveOnly = async () => {
+  const handleSaveOnly = async (autoNavigate = false) => {
     try {
       await saveSection({ stayOnStep: true });
       window.alert("Saved successfully!");
+      
+      // Auto navigate to next step if requested (e.g., from Personal section)
+      if (autoNavigate) {
+        nextStep();
+      }
     } catch {
       // already handled
     }
