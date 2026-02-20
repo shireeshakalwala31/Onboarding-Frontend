@@ -207,8 +207,8 @@ const Personal = forwardRef(function Personal(
       firstName: (personal.firstName || "").toString().trim().toUpperCase(),
       lastName: (personal.lastName || "").toString().trim().toUpperCase(),
 
-      // dob -> onboardingApi will map 'dob' to 'dateOfBirth'
-      dob: personal.dob || "",
+      // dateOfBirth: backend expects this field name
+      dateOfBirth: personal.dob || "",
 
       // Place / location fields (backend fields: placeOfBirth, state, district)
       placeOfBirth: personal.placeOfBirth || "",
