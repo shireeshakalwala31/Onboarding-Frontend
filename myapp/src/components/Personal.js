@@ -44,11 +44,8 @@ const Personal = forwardRef(function Personal(
     // Pincode max 6
     if (name === "presentPin" || name === "permPin") value = value.slice(0, 6);
 
-    // For blood input allow letters +/-, convert small mistakes on save instead of here
-
     // If marital status changed to 'Single', clear marriage date
     if (name === "maritalStatus") {
-      // normalize option text
       const normalized = (value || "").toString();
       if (normalized.toLowerCase() === "single") {
         setPersonalField("marriageDate", "");
@@ -154,7 +151,6 @@ const Personal = forwardRef(function Personal(
     if (p.maritalStatus && p.maritalStatus.toString().toLowerCase() === "married") {
       if (!p.marriageDate) newErrors.marriageDate = "Marriage date is required for married applicants.";
       else if (p.marriageDate > today) newErrors.marriageDate = "Marriage date cannot be in the future.";
-      // optionally: ensure marriageDate is after dob + 16 years - skipped for simplicity
     }
 
     setErrors(newErrors);
@@ -172,110 +168,11 @@ const Personal = forwardRef(function Personal(
 
   const handlePrevClick = () => onPrev && onPrev();
 
-  /**
-   * IMPORTANT:
-   * Build `mapped` object to match backend field names exactly.
-   * - dob -> will be converted to dateOfBirth by onboardingApi.savePersonalInfo
-   * - aadhar -> will be converted to aadhaar
-   * - permPhone -> will be converted to permanentPhone
-   * - presentPin / permPin -> map to presentPincode / permanentPincode
-   * - permAddress -> permanentAddress (backend expects permanentAddress)
-   * - blood -> bloodGroup (normalize common mistakes)
-   * - license -> drivingLicense
-   * - marriageDate -> marriageDate
-   *
-   * We intentionally keep all fields (empty string fallback) so backend doesn't get `undefined`/`null`.
-   */
-  const handleSaveClick = () => {
-    // normalize blood group input: common mistakes -> uppercase, replace leading zero with 'O'
-    const rawBlood = (personal.blood || personal.bloodGroup || "").toString().trim();
-    let normalizedBlood = rawBlood.toUpperCase().replace(/\s+/g, "");
-    // replace common '0' (zero) used instead of 'O' e.g. '0+' => 'O+'
-    normalizedBlood = normalizedBlood.replace(/^0/, "O");
-
-    // ensure plus/minus format stays (e.g., O+, A-, etc.)
-    // if blank -> keep blank to allow backend default
-    if (normalizedBlood === "") normalizedBlood = "";
-
-    // driving license stored as string; frontend uses 'license'
-    const dl = personal.license || personal.drivingLicense || "";
-
-    const mapped = {
-      draftId: localStorage.getItem("draftId") || "",
-
-      // names (backend schema uses firstName/lastName)
-      firstName: (personal.firstName || "").toString().trim().toUpperCase(),
-      lastName: (personal.lastName || "").toString().trim().toUpperCase(),
-
-      // dob -> onboardingApi will map 'dob' to 'dateOfBirth'
-      dob: personal.dob || "",
-
-      // Place / location fields (backend fields: placeOfBirth, state, district)
-      placeOfBirth: personal.placeOfBirth || "",
-      state: personal.state || "",
-      district: personal.district || "",
-
-      // nationality & religion
-      nationality: personal.nationality || "Indian",
-      religion: personal.religion || "",
-
-      // bloodGroup (schema uses bloodGroup)
-      bloodGroup: normalizedBlood,
-
-      // gender & maritalStatus (schema expects gender, maritalStatus)
-      gender: personal.gender || "",
-      maritalStatus: personal.maritalStatus || "Single",
-
-      // marriageDate
-      marriageDate: personal.marriageDate || "",
-
-      // Present address block (schema fields: presentAddress, presentCity, presentState, presentPincode, presentPhone)
-      presentAddress: personal.presentAddress || "",
-      presentCity: personal.presentCity || "",
-      presentState: personal.presentState || "",
-      presentPincode: personal.presentPin || "",
-      presentPhone: personal.presentPhone || "",
-
-      // Permanent address block (schema fields: permanentAddress, permanentCity, permanentState, permanentPincode, permanentPhone)
-      permanentAddress: personal.permAddress || "",
-      permanentCity: personal.permCity || "",
-      permanentState: personal.permState || "",
-      permanentPincode: personal.permPin || "",
-      // On frontend we use 'permPhone' so onboardingApi maps it to permanentPhone
-      permPhone: personal.permPhone || "",
-
-      // Identification fields
-      // backend schema field names: drivingLicense, pan, aadhaar
-      drivingLicense: dl,
-      pan: personal.pan || "",
-      aadhar: personal.aadhar || "",
-
-      // email (keep for contact)
-      email: personal.email || "",
-
-      // photo hint (actual upload handled separately)
-      photoHint: personal.photoFile ? "attached" : "",
-    };
-
-    // call parent onSave with mapped payload (your onboardingApi expects this shape)
-    // Pass second arg (photoFile) if present to encourage direct upload handling
-    if (onSave) {
-      try {
-        onSave(mapped, personal.photoFile);
-      } catch (e) {
-        // if parent's onSave signature doesn't accept second arg, fallback to single arg
-        try {
-          onSave(mapped);
-        } catch (err) {
-          console.warn("onSave failed when called from Personal component", err);
-        }
-      }
-    }
-  };
-
-  const handleNextClick = () => {
-    setTouched({
-      ...touched,
+  // Build and save after local validation; return boolean indicating success
+  const handleSaveClick = async () => {
+    // Mark essential fields touched so messages appear
+    setTouched((t) => ({
+      ...t,
       firstName: true,
       lastName: true,
       dob: true,
@@ -284,16 +181,84 @@ const Personal = forwardRef(function Personal(
       permPhone: true,
       maritalStatus: true,
       marriageDate: true,
-    });
+    }));
 
     const errs = runValidation();
     if (Object.keys(errs).length > 0) {
       refs.personal?.current?.scrollIntoView({ behavior: "smooth" });
-      return;
+      return false;
     }
 
-    handleSaveClick();
-    onNext && onNext();
+    // normalize blood group input
+    const rawBlood = (personal.blood || personal.bloodGroup || "").toString().trim();
+    let normalizedBlood = rawBlood.toUpperCase().replace(/\s+/g, "");
+    normalizedBlood = normalizedBlood.replace(/^0/, "O");
+    if (normalizedBlood === "") normalizedBlood = "";
+
+    const dl = personal.license || personal.drivingLicense || "";
+
+    const mapped = {
+      draftId: localStorage.getItem("draftId") || "",
+
+      firstName: (personal.firstName || "").toString().trim().toUpperCase(),
+      lastName: (personal.lastName || "").toString().trim().toUpperCase(),
+
+      dob: personal.dob || "",
+
+      placeOfBirth: personal.placeOfBirth || "",
+      state: personal.state || "",
+      district: personal.district || "",
+
+      nationality: personal.nationality || "Indian",
+      religion: personal.religion || "",
+
+      bloodGroup: normalizedBlood,
+
+      gender: personal.gender || "",
+      maritalStatus: personal.maritalStatus || "Single",
+
+      marriageDate: personal.marriageDate || "",
+
+      presentAddress: personal.presentAddress || "",
+      presentCity: personal.presentCity || "",
+      presentState: personal.presentState || "",
+      presentPincode: personal.presentPin || "",
+      presentPhone: personal.presentPhone || "",
+
+      permanentAddress: personal.permAddress || "",
+      permanentCity: personal.permCity || "",
+      permanentState: personal.permState || "",
+      permanentPincode: personal.permPin || "",
+      // keep permPhone; parent/backend maps to permanentPhone if needed
+      permPhone: personal.permPhone || "",
+
+      drivingLicense: dl,
+      pan: personal.pan || "",
+      aadhar: personal.aadhar || "",
+
+      email: personal.email || "",
+
+      photoHint: personal.photoFile ? "attached" : "",
+    };
+
+    if (!onSave) return true;
+
+    try {
+      const result = await onSave(mapped, personal.photoFile);
+      // If parent returns false explicitly on failure, treat as failure
+      if (result === false) return false;
+      return true;
+    } catch (e) {
+      // Parent should handle error toast; we only block further flow
+      return false;
+    }
+  };
+
+  const handleNextClick = async () => {
+    const ok = await handleSaveClick();
+    if (ok) {
+      onNext && onNext();
+    }
   };
 
   /* ----------------------- UI ----------------------- */
@@ -651,7 +616,7 @@ const Personal = forwardRef(function Personal(
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={handleSaveClick}
+              onClick={async () => { await handleSaveClick(); }}
               className="px-5 py-2 rounded border"
             >
               Save
