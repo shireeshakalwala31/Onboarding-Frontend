@@ -328,6 +328,7 @@ const Personal = forwardRef(function Personal(
               onChange={handleInput}
               onBlur={() => handleBlur("firstName")}
               className="input"
+              maxLength={100}
             />
             {touched.firstName && errors.firstName && (
               <div className="text-red-600 text-sm mt-1">
@@ -345,6 +346,7 @@ const Personal = forwardRef(function Personal(
               onChange={handleInput}
               onBlur={() => handleBlur("lastName")}
               className="input"
+              maxLength={100}
             />
             {touched.lastName && errors.lastName && (
               <div className="text-red-600 text-sm mt-1">
